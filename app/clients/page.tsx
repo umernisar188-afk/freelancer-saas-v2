@@ -1,11 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-export default function ClientsPage() {
- const [clients, setClients] = useState<any[]>([]);
 
+export default function ClientsPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+  async function checkUser() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    setLoading(false);
+  }
+
+  checkUser();
+}, []);
+  const [clients, setClients] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
@@ -55,6 +73,15 @@ await loadClients();
   setCompany("");
 
   loadClients();
+}
+if (loading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-xl font-semibold">
+        Loading...
+      </p>
+    </div>
+  );
 }
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-10">

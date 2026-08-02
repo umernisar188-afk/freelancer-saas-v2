@@ -1,78 +1,98 @@
 "use client";
+import ProtectedRoute from "../components/protectedRoute";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getCompany } from "../lib/companyStore";
 import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf"; 
-
+import { useRouter } from "next/navigation";
 import RevenueChart from "../components/RevenueChart";
-
-export default function DashboardPage() {
-
+function DashboardPage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [company, setCompany] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [filter, setFilter] = useState("All");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-const totalClients = new Set(
-  invoices.map((invoice) => invoice.client_name)
-).size;
-async function loadInvoices() {
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("*")
-    .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error(error);
-    return;
+  async function loadInvoices() {
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setInvoices(data || []);
   }
 
-  setInvoices(data || []);
-}
   useEffect(() => {
-  loadInvoices();
-  setCompany(getCompany());
-}, []);
-const totalRevenue = invoices
-  .filter((invoice) => invoice.status === "Paid")
-  .reduce(
-    (sum, invoice) => sum + Number(invoice.amount),
-    0
-  );
-const totalInvoices = invoices.length;
+    loadInvoices();
+    setCompany(getCompany());
+  }, []);
 
+  if (!company) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-emerald-500">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+            <p className="text-white text-lg font-semibold">
+              Loading Dashboard...
+            </p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
-const pendingInvoices = invoices
-  .filter((invoice) => invoice.status === "Pending")
-  .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+  const totalClients = new Set(
+    invoices.map((invoice) => invoice.client_name)
+  ).size;
+
+  const totalRevenue = invoices
+    .filter((invoice) => invoice.status === "Paid")
+    .reduce(
+      (sum, invoice) => sum + Number(invoice.amount),
+      0
+    );
+  const totalInvoices = invoices.length;
+
+  const pendingInvoices = invoices
+    .filter((invoice) => invoice.status === "Pending")
+    .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+
   const hour = new Date().getHours();
 
-let greeting = "Good Evening 🌙";
+  let greeting = "Good Evening 🌙";
 
-if (hour < 12) {
-  greeting = "Good Morning 🌅";
-} else if (hour < 18) {
-  greeting = "Good Afternoon ☀️";
-}
-const filteredInvoices = invoices.filter((invoice) =>
-  invoice.client_name.toLowerCase().includes(search.toLowerCase()) ||
-  invoice.projects.toLowerCase().includes(search.toLowerCase()) ||
-  String(invoice.id).includes(search)
-);
-const sortedInvoices = [...filteredInvoices].sort(
-  (a: any, b: any) => {
-    if (sort === "amount") {
-      return Number(b.amount) - Number(a.amount);
-    }
-    if (sort === "pending") {
-      return a.status === "Pending" ? -1 : 1;
-    }
-    return Number(b.id || 0) - Number(a.id || 0);
+  if (hour < 12) {
+    greeting = "Good Morning 🌅";
+  } else if (hour < 18) {
+    greeting = "Good Afternoon ☀️";
   }
-);
 
+  const filteredInvoices = invoices.filter((invoice) =>
+    invoice.client_name.toLowerCase().includes(search.toLowerCase()) ||
+    invoice.projects.toLowerCase().includes(search.toLowerCase()) ||
+    String(invoice.id).includes(search)
+  );
+
+  const sortedInvoices = [...filteredInvoices].sort(
+    (a: any, b: any) => {
+      if (sort === "amount") {
+        return Number(b.amount) - Number(a.amount);
+      }
+      if (sort === "pending") {
+        return a.status === "Pending" ? -1 : 1;
+      }
+      return Number(b.id || 0) - Number(a.id || 0);
+    }
+  );
   return (
     <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-100 p-10">
 
@@ -141,6 +161,16 @@ hover:scale-105
 Company Settings
 
 </Link>
+
+<button
+  onClick={async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }}
+  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+>
+  Logout
+</button>
 
 
 </div>
@@ -558,3 +588,4 @@ console.log("Error:", error);
     </main>
   );
 }
+
