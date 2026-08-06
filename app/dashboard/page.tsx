@@ -1,5 +1,6 @@
 "use client";
-import ProtectedRoute from "../components/protectedRoute";
+import ThemeToggle from "../components/ThemeToggle";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getCompany } from "../lib/companyStore";
@@ -7,8 +8,8 @@ import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf"; 
 import { useRouter } from "next/navigation";
 import RevenueChart from "../components/RevenueChart";
-function DashboardPage() {
-  const router = useRouter();
+export default function DashboardPage() {
+  
   const [invoices, setInvoices] = useState<any[]>([]);
   const [company, setCompany] = useState<any>(null);
   const [search, setSearch] = useState("");
@@ -16,129 +17,105 @@ function DashboardPage() {
   const [filter, setFilter] = useState("All");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  async function loadInvoices() {
-    const { data, error } = await supabase
-      .from("invoices")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setInvoices(data || []);
-  }
-
+  const router = useRouter();
   useEffect(() => {
-    loadInvoices();
-    setCompany(getCompany());
-  }, []);
+  }, [router]);
+const totalClients = new Set(
+  invoices.map((invoice) => invoice.client_name)
+).size;
+async function loadInvoices() {
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  if (!company) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-emerald-500">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-            <p className="text-white text-lg font-semibold">
-              Loading Dashboard...
-            </p>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
+  if (error) {
+    console.error(error);
+    return;
   }
 
-  const totalClients = new Set(
-    invoices.map((invoice) => invoice.client_name)
-  ).size;
+  setInvoices(data || []);
+}
+  useEffect(() => {
+  loadInvoices();
+  setCompany(getCompany());
+}, []);
+const totalRevenue = invoices
+  .filter((invoice) => invoice.status === "Paid")
+  .reduce(
+    (sum, invoice) => sum + Number(invoice.amount),
+    0
+  );
+const totalInvoices = invoices.length;
 
-  const totalRevenue = invoices
-    .filter((invoice) => invoice.status === "Paid")
-    .reduce(
-      (sum, invoice) => sum + Number(invoice.amount),
-      0
-    );
-  const totalInvoices = invoices.length;
 
-  const pendingInvoices = invoices
-    .filter((invoice) => invoice.status === "Pending")
-    .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
-
+const pendingInvoices = invoices
+  .filter((invoice) => invoice.status === "Pending")
+  .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
   const hour = new Date().getHours();
 
-  let greeting = "Good Evening 🌙";
+let greeting = "Good Evening 🌙";
 
-  if (hour < 12) {
-    greeting = "Good Morning 🌅";
-  } else if (hour < 18) {
-    greeting = "Good Afternoon ☀️";
-  }
-
-  const filteredInvoices = invoices.filter((invoice) =>
-    invoice.client_name.toLowerCase().includes(search.toLowerCase()) ||
-    invoice.projects.toLowerCase().includes(search.toLowerCase()) ||
-    String(invoice.id).includes(search)
-  );
-
-  const sortedInvoices = [...filteredInvoices].sort(
-    (a: any, b: any) => {
-      if (sort === "amount") {
-        return Number(b.amount) - Number(a.amount);
-      }
-      if (sort === "pending") {
-        return a.status === "Pending" ? -1 : 1;
-      }
-      return Number(b.id || 0) - Number(a.id || 0);
+if (hour < 12) {
+  greeting = "Good Morning 🌅";
+} else if (hour < 18) {
+  greeting = "Good Afternoon ☀️";
+}
+const filteredInvoices = invoices.filter((invoice) =>
+  invoice.client_name.toLowerCase().includes(search.toLowerCase()) ||
+  invoice.projects.toLowerCase().includes(search.toLowerCase()) ||
+  String(invoice.id).includes(search)
+);
+const sortedInvoices = [...filteredInvoices].sort(
+  (a: any, b: any) => {
+    if (sort === "amount") {
+      return Number(b.amount) - Number(a.amount);
     }
-  );
+    if (sort === "pending") {
+      return a.status === "Pending" ? -1 : 1;
+    }
+    return Number(b.id || 0) - Number(a.id || 0);
+  }
+);
+
   return (
+  
     <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-100 p-10">
+<div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-xl border border-green-100 dark:border-slate-700 p-10">
 
-      <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-green-100 p-10">
-<div className="flex items-center gap-5">
+  <div className="flex items-center justify-between flex-wrap gap-6 mb-8">
 
+    <div className="flex items-center gap-4">
 
-<div>
+      {company?.logo && (
+        <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-black bg-white flex items-center justify-center">
+          <img
+            src="/logo.png"
+            alt="Company Logo"
+            className="w-10 h-10 object-contain"
+          />
+        </div>
+      )}
 
-<div className="flex items-center justify-between flex-wrap gap-5">
+      <div>
+        <p className="text-blue-600 font-semibold tracking-wide uppercase text-sm">
+          Welcome Back 👋
+        </p>
 
-<div className="flex items-center gap-4">
-{company?.logo && (
+        <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mt-2">
+          {company?.name || "Freelancer SaaS"}
+        </h1>
 
-<div className="w-12 h-12 flex-shrink-0 rounded-xl border-2 border-black bg-white flex items-center justify-center overflow-hidden">
-<img
-src="/logo.png"
-alt="Company Logo"
-className="w-10 h-10 object-contain rounded-lg"
-/>
-</div>
+        <p className="text-gray-500 dark:text-gray-400 mt-3 text-lg">
+          Manage invoices, clients and revenue from one beautiful dashboard.
+        </p>
+      </div>
 
-)}
-<div>
-<div className="flex flex-col">
+    </div>
 
-  <p className="text-blue-600 font-semibold tracking-wide uppercase text-sm">
-    Welcome Back 👋
-  </p>
+    <ThemeToggle />
 
-  <h1 className="text-5xl font-extrabold text-gray-900 mt-2">
-    {company?.name || "Freelancer SaaS"}
-  </h1>
-
-  <p className="text-gray-500 mt-3 text-lg">
-    Manage invoices, clients and revenue from one beautiful dashboard.
-  </p>
-
-</div>
-
-</div>
-
-
-</div>
-
-
+  </div>
 <Link
 
 href="/settings"
@@ -172,11 +149,6 @@ Company Settings
   Logout
 </button>
 
-
-</div>
-<p className="text-blue-600 font-semibold tracking-wide uppercase text-sm">
-  {greeting}
-</p>
 
 <div className="mt-8 rounded-3xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 p-8 shadow-2xl text-white">
 
@@ -268,7 +240,6 @@ Company Settings
 
   </div>
 
-</div>
       </div>
         <div className="mt-10">
 
@@ -573,19 +544,15 @@ console.log("Error:", error);
 >
   Cancel
 </button>
-
-  </div>
-
-)}
-              </div>
-            ))}
-             </div>
-
+            </div>
+          )}
+            </div>
+          ))}
         </div>
-        </div>
-         <RevenueChart invoices={invoices} />
 
+        <RevenueChart invoices={invoices} />
+      </div>
     </main>
+    
   );
 }
-
