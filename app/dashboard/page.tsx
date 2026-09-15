@@ -1,15 +1,14 @@
 "use client";
 import ThemeToggle from "../components/ThemeToggle";
-
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getCompany } from "../lib/companyStore";
+
 import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf"; 
 import { useRouter } from "next/navigation";
 import RevenueChart from "../components/RevenueChart";
 export default function DashboardPage() {
-  
+const [sidebarOpen, setSidebarOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [company, setCompany] = useState<any>(null);
   const [search, setSearch] = useState("");
@@ -37,21 +36,51 @@ async function loadInvoices() {
   setInvoices(data || []);
 }
   useEffect(() => {
-  loadInvoices();
-  setCompany(getCompany());
-}, []);
+  async function loadDashboardData() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    const { data: companyData, error: companyError } = await supabase
+      .from("companies")
+      .select("name, email, phone, logo")
+      .eq("user_id", user.id)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (companyError) {
+      console.error("LOAD COMPANY ERROR:", companyError);
+      return;
+    }
+
+    if (companyData) {
+      setCompany(companyData);
+    }
+
+    await loadInvoices();
+  }
+
+  loadDashboardData();
+}, [router]);
 const totalRevenue = invoices
   .filter((invoice) => invoice.status === "Paid")
-  .reduce(
-    (sum, invoice) => sum + Number(invoice.amount),
-    0
-  );
+  .reduce((sum, invoice) => {
+    const amount = Number(invoice.amount);
+    return Number.isNaN(amount) ? sum : sum + amount;
+  }, 0);
 const totalInvoices = invoices.length;
-
-
 const pendingInvoices = invoices
   .filter((invoice) => invoice.status === "Pending")
-  .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+  .reduce((sum, invoice) => {
+    const amount = Number(invoice.amount);
+    return Number.isNaN(amount) ? sum : sum + amount;
+  }, 0);
   const hour = new Date().getHours();
 
 let greeting = "Good Evening 🌙";
@@ -80,17 +109,16 @@ const sortedInvoices = [...filteredInvoices].sort(
 
   return (
   
-    <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-100 p-10">
-<div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-xl border border-green-100 dark:border-slate-700 p-10">
-
+   <main className="min-h-screen bg-background">
+<div className="bg-surface/75 dark:bg-slate-800/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-10 transition-all duration-300">
   <div className="flex items-center justify-between flex-wrap gap-6 mb-8">
 
     <div className="flex items-center gap-4">
 
       {company?.logo && (
-        <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-black bg-white flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-border bg-input flex items-center justify-center shadow-lg transition-colors duration-300">
           <img
-            src="/logo.png"
+            src={company.logo}
             alt="Company Logo"
             className="w-10 h-10 object-contain"
           />
@@ -102,11 +130,11 @@ const sortedInvoices = [...filteredInvoices].sort(
           Welcome Back 👋
         </p>
 
-        <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mt-2">
-          {company?.name || "Freelancer SaaS"}
-        </h1>
+       <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-blue-600 via-emerald-500 to-emerald-600 dark:from-blue-400 dark:via-emerald-400 dark:to-emerald-500 bg-clip-text text-transparent">
+  {company?.name || "Freelancer SaaS"}
+</h1>
 
-        <p className="text-gray-500 dark:text-gray-400 mt-3 text-lg">
+        <p className="text-text-secondary mt-3 text-lg">
           Manage invoices, clients and revenue from one beautiful dashboard.
         </p>
       </div>
@@ -116,41 +144,92 @@ const sortedInvoices = [...filteredInvoices].sort(
     <ThemeToggle />
 
   </div>
-<Link
 
-href="/settings"
-className="
-bg-blue-600
-hover:bg-blue-700
-text-white
-font-semibold
-px-6
-py-3
-rounded-xl
-shadow-lg
-transition
-duration-300
-hover:scale-105
-"
-
->
-
-Company Settings
-
-</Link>
-
+{/* Menu Button */}
 <button
-  onClick={async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  }}
-  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+  onClick={() => setSidebarOpen(!sidebarOpen)}
+  className="fixed top-5 left-5 z-[60] w-12 h-12 rounded-xl bg-slate-950 text-white shadow-xl flex items-center justify-center text-2xl hover:bg-slate-800 transition"
+  aria-label="Toggle menu"
 >
-  Logout
+  {sidebarOpen ? "✕" : "☰"}
 </button>
 
+{/* Sidebar Overlay */}
+{sidebarOpen && (
+  <div
+    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+    onClick={() => setSidebarOpen(false)}
+  />
+)}
 
-<div className="mt-8 rounded-3xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 p-8 shadow-2xl text-white">
+{/* Sidebar */}
+<div
+  className={`fixed left-0 top-0 z-50 h-screen w-64 bg-slate-950 text-white shadow-2xl border-r border-slate-800 flex flex-col transition-transform duration-300 ${
+    sidebarOpen ? "translate-x-0" : "-translate-x-full"
+  }`}
+>
+  <div className="p-6 border-b border-slate-800">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center font-extrabold text-lg">
+        FS
+      </div>
+
+      <div>
+        <p className="font-bold text-lg">Freelancer SaaS</p>
+        <p className="text-xs text-slate-400">Business Dashboard</p>
+      </div>
+    </div>
+  </div>
+
+  <nav className="flex-1 p-4 space-y-2">
+    <Link
+      href="/dashboard"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 font-semibold hover:bg-blue-700 transition"
+    >
+      🏠 Dashboard
+    </Link>
+
+    <Link
+      href="/clients"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition"
+    >
+      👥 Clients
+    </Link>
+
+    <Link
+      href="/invoices"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition"
+    >
+      📄 Invoices
+    </Link>
+
+    <Link
+      href="/settings"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition"
+    >
+      ⚙️ Company Settings
+    </Link>
+  </nav>
+
+  <div className="p-4 border-t border-slate-800">
+    <button
+      onClick={async () => {
+        setSidebarOpen(false);
+        await supabase.auth.signOut();
+        router.push("/login");
+      }}
+      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-semibold transition"
+    >
+      🚪 Logout
+    </button>
+  </div>
+</div>
+
+<div className="mt-8 rounded-3xl bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-500 p-8 shadow-2xl text-white transition-all duration-300">
 
   <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
 
@@ -172,7 +251,7 @@ Company Settings
 
     <Link
       href="/create-invoice"
-      className="bg-white text-blue-600 font-bold px-8 py-4 rounded-2xl shadow-xl hover:scale-105 transition"
+      className="bg-white text-blue-600 font-bold px-8 py-4 rounded-2xl shadow-xl hover:scale-[1.03] hover:shadow-2xl transition-all duration-300"
     >
       + Create Invoice
     </Link>
@@ -181,60 +260,59 @@ Company Settings
 
 </div>
   {/* Revenue */}
-  <div className="bg-white rounded-3xl p-7 shadow-md border border-gray-100 hover:shadow-xl transition">
-
+  <div className="bg-white/25 dark:bg-slate-800/40 backdrop-blur-2xl rounded-3xl p-7 shadow-2xl border border-white/40 dark:border-white/10 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
     <div className="text-4xl">💰</div>
 
-    <p className="text-gray-500 mt-3">
+  <p className="text-text-secondary mt-3">
       Total Revenue
     </p>
 
-    <h2 className="text-4xl font-bold text-gray-900 mt-2">
+    <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent mt-2">
       ${totalRevenue}
     </h2>
 
   </div>
 
   {/* Invoices */}
-  <div className="bg-white rounded-3xl p-7 shadow-md border border-gray-100 hover:shadow-xl transition">
+  <div className="bg-white/25 dark:bg-slate-800/40 backdrop-blur-2xl rounded-3xl p-7 shadow-2xl border border-white/40 dark:border-white/10 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
 
     <div className="text-4xl">📄</div>
 
-    <p className="text-gray-500 mt-3">
+    <p className="text-text-secondary mt-3">
       Total Invoices
     </p>
 
-    <h2 className="text-4xl font-bold text-gray-900 mt-2">
+    <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent mt-2">
       {totalInvoices}
     </h2>
 
   </div>
 
   {/* Clients */}
-  <div className="bg-white rounded-3xl p-7 shadow-md border border-gray-100 hover:shadow-xl transition">
+  <div className="bg-white/25 dark:bg-slate-800/40 backdrop-blur-2xl rounded-3xl p-7 shadow-2xl border border-white/40 dark:border-white/10 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
 
     <div className="text-4xl">👥</div>
 
-    <p className="text-gray-500 mt-3">
+    <p className="text-text-secondary mt-3">
       Clients
     </p>
 
-    <h2 className="text-4xl font-bold text-gray-900 mt-2">
+    <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent mt-2">
       {totalClients}
     </h2>
 
   </div>
 
   {/* Pending */}
-  <div className="bg-white rounded-3xl p-7 shadow-md border border-gray-100 hover:shadow-xl transition">
+  <div className="bg-white/25 dark:bg-slate-800/40 backdrop-blur-2xl rounded-3xl p-7 shadow-2xl border border-white/40 dark:border-white/10 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
 
     <div className="text-4xl">⏳</div>
 
-    <p className="text-gray-500 mt-3">
+    <p className="text-text-secondary mt-3">
       Pending Amount
     </p>
 
-    <h2 className="text-4xl font-bold text-gray-900 mt-2">
+    <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent mt-2">
       ${pendingInvoices}
     </h2>
 
@@ -242,17 +320,15 @@ Company Settings
 
       </div>
         <div className="mt-10">
-
-          <h2 className="text-2xl font-bold text-green-700">
-            Recent Invoices
-          </h2>
-          <div className="mt-5 space-y-4">
+<h2 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent">
+  Recent Invoices
+</h2>
+          <div className="mt-5 space-y-4 bg-surface/60 dark:bg-slate-900/40 rounded-3xl p-5 border border-border backdrop-blur-xl shadow-lg">
 <div className="relative mb-6">
 
   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
     🔍
   </span>
-
   <input
     className="
       w-full
@@ -261,13 +337,13 @@ Company Settings
       py-4
       rounded-2xl
       border
-      border-gray-200
-      bg-white
-      text-gray-900
+      border-border
+      bg-input
+      text-text-primary
       shadow-sm
       focus:outline-none
       focus:ring-4
-      focus:ring-blue-200
+      focus:ring-blue-400/30
       focus:border-blue-500
       transition-all
       duration-300
@@ -279,11 +355,10 @@ Company Settings
 
 </div>
 <select
-  className="w-full p-4 rounded-xl border border-gray-300 text-gray-900 bg-white mb-5"
+  className="w-full p-4 rounded-xl border border-border text-text-primary bg-surface/80 dark:bg-slate-800/70 backdrop-blur-xl mb-5 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-emerald-500/30 transition-all duration-300"
   value={sort}
   onChange={(e) => setSort(e.target.value)}
 >
-
   <option value="newest">
     Newest
   </option>
@@ -295,46 +370,43 @@ Company Settings
   <option value="pending">
     Pending First
   </option>
-
 </select>
 {sortedInvoices.map((invoice, index) => (
   <div
     key={invoice.id ?? index}
-    className="bg-white rounded-3xl p-7 shadow-md border border-gray-100 hover:shadow-xl transition"
+   className="bg-surface/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-3xl p-7 shadow-lg border border-border hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
   >
             <div className="flex justify-between items-start">
 
   <div>
 
-    <h3 className="text-2xl font-bold text-gray-900">
+    <h3 className="text-2xl font-bold text-text-primary">
       👤 {invoice.client_name}
     </h3>
 
-    <p className="text-gray-500 mt-1">
+    <p className="text-sm text-text-secondary mt-2">
       {invoice.projects}
     </p>
 
-    <p className="text-sm text-gray-400 mt-2">
+    <p className="text-sm text-text-secondary mt-2">
       Invoice #{invoice.id}
     </p>
 
   </div>
 
   <div className="text-right">
-
-    <p className="text-3xl font-bold text-blue-600">
-      ${invoice.amount}
-    </p>
-
-    <span
-      className={`inline-block mt-3 px-4 py-1 rounded-full text-sm font-semibold ${
-        invoice.status === "Paid"
-          ? "bg-green-100 text-green-700"
-          : "bg-yellow-100 text-yellow-700"
-      }`}
-    >
-      {invoice.status === "Paid" ? "🟢 Paid" : "🟡 Pending"}
-    </span>
+<p className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent">
+  ${invoice.amount}
+</p>
+   <span
+  className={`inline-block mt-3 px-4 py-1 rounded-full text-sm font-semibold ${
+    invoice.status === "Paid"
+      ? "bg-emerald-500 text-white dark:bg-emerald-600"
+      : "bg-blue-500 text-white dark:bg-blue-600"
+  }`}
+>
+  {invoice.status === "Paid" ? "🟢 Paid" : "🔵 Pending"}
+</span>
 
   </div>
 
@@ -342,7 +414,7 @@ Company Settings
 <div className="flex flex-wrap gap-3 mt-6">
 
   <button
-    className="bg-green-500 text-white font-semibold px-4 py-2 rounded-xl hover:bg-green-600 transition"
+   className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold px-4 py-2 rounded-xl shadow-md hover:from-emerald-600 hover:to-blue-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
     onClick={async () => {
 
   const newStatus =
@@ -366,12 +438,12 @@ Company Settings
 }}
   >
     {invoice.status === "Paid"
-      ? "🟡 Mark Pending"
-      : "🟢 Mark Paid"}
+  ? "🔵 Mark Pending"
+  : "🟢 Mark Paid"}
   </button>
 
   <button
-    className="bg-yellow-500 text-white font-semibold px-4 py-2 rounded-xl hover:bg-yellow-600 transition"
+  className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold px-4 py-2 rounded-xl shadow-md hover:from-blue-600 hover:to-indigo-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
     onClick={() => {
 
       setEditingIndex(index);
@@ -390,7 +462,7 @@ Company Settings
   </button>
 
   <button
-    className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+   className="bg-gradient-to-r from-blue-500 to-emerald-500 text-white font-semibold px-4 py-2 rounded-xl shadow-md hover:from-blue-600 hover:to-emerald-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
     onClick={() => {
       window.location.href = `/invoice/${invoice.id}`;
     }}
@@ -399,7 +471,7 @@ Company Settings
   </button>
 
   <button
-    className="bg-red-500 text-white font-semibold px-4 py-2 rounded-xl hover:bg-red-600 transition"
+   className="bg-red-500 text-white font-semibold px-4 py-2 rounded-xl shadow-md hover:bg-red-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
     onClick={async () => {
 
   console.log("DELETE CLICKED", invoice.id);
@@ -430,7 +502,7 @@ console.log("Error:", error);
   <div className="mt-5 space-y-3">
 
     <input
-      className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+      className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
       defaultValue={invoice.client_name}
       placeholder="Client"
       id={`client-${index}`}
@@ -438,7 +510,7 @@ console.log("Error:", error);
 
 
     <input
-      className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+      className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
       defaultValue={invoice.email}
       placeholder="Email"
       id={`email-${index}`}
@@ -446,7 +518,7 @@ console.log("Error:", error);
 
 
     <input
-      className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+      className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
       defaultValue={invoice.projects}
       placeholder="Project"
       id={`project-${index}`}
@@ -454,19 +526,19 @@ console.log("Error:", error);
 
 
     <input
-      className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+      className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
       defaultValue={invoice.amount}
       placeholder="Amount"
       id={`amount-${index}`}
     />
 <input
-  className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+  className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
   type="date"
   defaultValue={invoice.duedate || ""}
   id={`dueDate-${index}`}
 />
 <select
-  className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+  className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
   defaultValue={invoice.status || "Pending"}
   id={`status-${index}`}
 >
@@ -493,17 +565,28 @@ console.log("Error:", error);
 
 </select>
     <textarea
-      className="w-full p-3 rounded-xl border border-gray-300 text-gray-900 bg-white"
+      className="w-full p-3 rounded-xl border border-border text-text-primary bg-input"
       defaultValue={invoice.details}
       placeholder="Details"
       id={`details-${index}`}
     />
 
 <button
-  className="bg-green-500 text-black font-bold px-5 py-2 rounded-xl"
+  className="bg-green-500 text-white font-bold px-5 py-2 rounded-xl hover:bg-green-400 transition"
   onClick={async () => {
 
-    const { error } = await supabase
+  const amountInput = document.getElementById(
+    `amount-${index}`
+  ) as HTMLInputElement;
+
+  const numericAmount = Number(amountInput.value);
+
+  if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+    alert("Please enter a valid invoice amount.");
+    return;
+  }
+
+  const { error } = await supabase
       .from("invoices")
       .update({
         client_name: (document.getElementById(`client-${index}`) as HTMLInputElement).value,
@@ -512,7 +595,7 @@ console.log("Error:", error);
 
         projects: (document.getElementById(`project-${index}`) as HTMLInputElement).value,
 
-        amount: (document.getElementById(`amount-${index}`) as HTMLInputElement).value,
+        amount: numericAmount,
 
         duedate: (document.getElementById(`dueDate-${index}`) as HTMLInputElement).value,
 
@@ -536,7 +619,7 @@ console.log("Error:", error);
   Save Changes
 </button>
 <button
-  className="ml-3 bg-gray-500 text-white font-bold px-5 py-2 rounded-xl"
+  className="ml-3 bg-slate-500 text-white font-bold px-5 py-2 rounded-xl hover:bg-slate-400 transition"
   onClick={async () => {
     await loadInvoices();
     setEditingIndex(null);

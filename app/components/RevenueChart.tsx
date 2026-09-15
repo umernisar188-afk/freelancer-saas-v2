@@ -8,10 +8,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  Area,
 } from "recharts";
-
-
 
 const monthNames = [
   "Jan",
@@ -28,76 +25,103 @@ const monthNames = [
   "Dec",
 ];
 
-const totals = new Array(12).fill(0);
-
 export default function RevenueChart({ invoices }: { invoices: any[] }) {
-  // compute totals per month from the provided invoices prop
+  const totals = new Array(12).fill(0);
+
+  // Safely convert invoice amounts to numbers.
+  // Invalid amounts are ignored instead of producing NaN.
+  const getValidAmount = (invoice: any) => {
+    const amount = Number(invoice?.amount);
+
+    return Number.isFinite(amount) ? amount : 0;
+  };
+
+  // Calculate monthly revenue
   invoices.forEach((invoice) => {
-    const date = new Date(invoice.date);
+    const date = new Date(invoice?.date);
     const month = date.getMonth();
-    totals[month] += Number(invoice.amount);
+
+    if (
+      !Number.isNaN(date.getTime()) &&
+      month >= 0 &&
+      month <= 11
+    ) {
+      totals[month] += getValidAmount(invoice);
+    }
   });
 
-  const data = monthNames.map((month, index) => ({ month, revenue: totals[index] }));
+  const data = monthNames.map((month, index) => ({
+    month,
+    revenue: totals[index],
+  }));
 
-  const bestMonth = data.reduce((best, current) => (current.revenue > best.revenue ? current : best));
+  const bestMonth = data.reduce(
+    (best, current) =>
+      current.revenue > best.revenue ? current : best,
+    data[0]
+  );
+
+  // Safe total revenue calculation
+  const totalRevenue = invoices.reduce(
+    (sum, invoice) => sum + getValidAmount(invoice),
+    0
+  );
+
   return (
-    <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 mt-10">
+    <div className="bg-surface/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-3xl shadow-lg border border-border p-8 mt-10 transition-all duration-300">
 
       <div className="flex justify-between items-center mb-8">
 
-        <div>
-<div className="flex justify-between items-center">
+        <div className="w-full">
 
-  <div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
 
-    <p className="text-sm uppercase tracking-widest text-blue-500 font-semibold">
-      Analytics
-    </p>
+            <div>
 
-    <h2 className="text-3xl font-bold text-gray-900 mt-1">
-      Revenue Overview
-    </h2>
+              <p className="text-sm uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-semibold">
+                Analytics
+              </p>
 
-    <p className="text-gray-500 mt-2">
-      Monthly business performance
-    </p>
+              <h2 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent mt-1">
+                Revenue Overview
+              </h2>
 
-  </div>
+              <p className="text-text-secondary mt-2">
+                Monthly business performance
+              </p>
 
-  <div className="bg-blue-50 rounded-2xl px-5 py-3 text-right">
+            </div>
 
-  <p className="text-sm text-gray-500">
-    🔥 Best Month
-  </p>
+            <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-2xl px-5 py-3 text-right">
 
-  <h2 className="text-xl font-bold text-blue-600">
-    {bestMonth.month}
-  </h2>
+              <p className="text-sm text-text-secondary">
+                🔥 Best Month
+              </p>
 
-  <p className="text-sm text-gray-700">
-    ${bestMonth.revenue}
-  </p>
+              <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                {bestMonth.month}
+              </h2>
 
-</div>
+              <p className="text-sm text-text-secondary">
+                ${bestMonth.revenue.toFixed(2)}
+              </p>
 
-</div>
-          
-        </div>
+            </div>
 
-        <div className="text-right">
+          </div>
 
-          <p className="text-sm text-gray-500">
-            Total
-          </p>
+          <div className="text-right mt-6">
 
-          <h2 className="text-3xl font-bold text-blue-600">
-  $
-  {invoices.reduce(
-    (sum, invoice) => sum + Number(invoice.amount),
-    0
-  )}
-</h2>
+            <p className="text-sm text-text-secondary">
+              Total
+            </p>
+
+            <h2 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-blue-400 dark:to-emerald-400 bg-clip-text text-transparent">
+              ${totalRevenue.toFixed(2)}
+            </h2>
+
+          </div>
+
         </div>
 
       </div>
@@ -106,96 +130,83 @@ export default function RevenueChart({ invoices }: { invoices: any[] }) {
 
         <ResponsiveContainer>
 
-  <LineChart
-  
-    data={data}
-    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-  >
-<defs>
+          <LineChart
+            data={data}
+            margin={{
+              top: 20,
+              right: 20,
+              left: 0,
+              bottom: 0,
+            }}
+          >
 
-  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+            <CartesianGrid
+              stroke="var(--border)"
+              strokeDasharray="4 4"
+            />
 
-    <stop
-      offset="5%"
-      stopColor="#3f25eb"
-      stopOpacity={0.45}
-    />
+            <XAxis
+              dataKey="month"
+              tick={{
+                fill: "var(--text-secondary)",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+              axisLine={false}
+              tickLine={false}
+            />
 
-    <stop
-      offset="95%"
-      stopColor="#2563EB"
-      stopOpacity={0}
-    />
+            <YAxis
+              tick={{
+                fill: "var(--text-secondary)",
+                fontSize: 13,
+              }}
+              axisLine={false}
+              tickLine={false}
+            />
 
-  </linearGradient>
+            <Tooltip
+              formatter={(value) => [
+                `$${Number(value).toFixed(2)}`,
+                "Revenue",
+              ]}
+              contentStyle={{
+                borderRadius: 16,
+                border: "1px solid var(--border)",
+                boxShadow: "0 15px 40px rgba(0,0,0,.25)",
+                background: "var(--surface)",
+                color: "var(--text-primary)",
+              }}
+            />
 
-</defs>
-<defs>
-  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.45} />
-    <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-  </linearGradient>
-</defs>
-    <CartesianGrid
-      stroke="#E5E7EB"
-      strokeDasharray="4 4"
-    />
-<XAxis
-  dataKey="month"
-  tick={{
-    fill: "#374151",
-    fontSize: 14,
-    fontWeight: 600,
-  }}
-  axisLine={false}
-  tickLine={false}
-/>
-    <YAxis
-  tick={{
-    fill: "#374151",
-    fontSize: 13,
-  }}
-  axisLine={false}
-  tickLine={false}
-/>
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke="#10b981"
+              strokeWidth={5}
+              animationDuration={1800}
+              dot={{
+                r: 5,
+                stroke: "#2563eb",
+                strokeWidth: 2,
+                fill: "var(--background)",
+              }}
+              activeDot={{
+                r: 9,
+                fill: "var(--background)",
+                stroke: "#10b981",
+                strokeWidth: 3,
+              }}
+              style={{
+                filter:
+                  "drop-shadow(0px 0px 10px rgba(16,185,129,.45))",
+              }}
+            />
 
-    
+          </LineChart>
 
-    <Tooltip
-      contentStyle={{
-        borderRadius: 16,
-        border: "none",
-        boxShadow: "0 15px 40px rgba(0,0,0,.15)",
-        background: "#ffffff"
-      }}
-    />
+        </ResponsiveContainer>
 
-<Line
-  type="monotone"
-  dataKey="revenue"
-  stroke="#2563EB"
-  strokeWidth={5}
-  animationDuration={1800}
-  dot={{
-    r: 5,
-    stroke: "#2563EB",
-    strokeWidth: 2,
-    fill: "#ffffff",
-  }}
-  activeDot={{
-    r: 9,
-    fill: "#2563EB",
-    stroke: "#ffffff",
-    strokeWidth: 3,
-  }}
-  style={{
-    filter: "drop-shadow(0px 0px 10px rgba(37,99,235,.45))",
-  }}
-/>
-
-  </LineChart>
-
-</ResponsiveContainer>
       </div>
 
     </div>

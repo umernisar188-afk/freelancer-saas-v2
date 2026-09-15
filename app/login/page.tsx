@@ -24,20 +24,25 @@ console.log("Password length:", password.length);
 
   setError("");
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({
+  email,
+  password,
+});
 
-  if (error) {
-    setError(error.message);
-    return;
-  }
+if (error) {
+  setError(error.message);
+  return;
+}
 
-  router.push("/dashboard");
+console.log("LOGIN USER:", data.user?.id ?? "NO USER");
+console.log("LOGIN SESSION:", data.session ? "SESSION CREATED" : "NO SESSION");
+
+await supabase.auth.getUser();
+
+window.location.href = "/dashboard";
 }
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-emerald-500 flex items-center justify-center px-6">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-emerald-500 dark:from-slate-950 dark:via-blue-950 dark:to-emerald-950 flex items-center justify-center px-6 transition-colors duration-300">
 
       {/* Background Blur Circles */}
 
@@ -103,15 +108,15 @@ console.log("Password length:", password.length);
           className="w-20 mx-auto mb-6"
         />
 
-        <h1 className="text-4xl font-extrabold text-white text-center">
+        <h1 className="text-4xl font-extrabold text-text-primary text-center">
           Welcome Back
         </h1>
 
-        <p className="text-white/80 text-center mt-3 mb-8">
+        <p className="text-text-secondary text-center mt-3 mb-8">
           Sign in to continue managing your business.
         </p>
 {error && (
-  <p className="text-red-300 text-sm mb-4">
+  <p className="text-red-500 dark:text-red-400 text-sm mb-4">
     {error}
   </p>
 )}
@@ -119,19 +124,24 @@ console.log("Password length:", password.length);
           placeholder="Email"
           value={email}
 onChange={(e) => setEmail(e.target.value)}
-          className="
-            w-full
-            mb-4
-            p-4
-            rounded-xl
-            bg-white/20
-            border
-            border-white/30
-            placeholder:text-white/70
-            text-white
-            outline-none
-          "
-
+         className="
+  w-full
+  mb-4
+  p-4
+  rounded-xl
+  bg-input
+  border
+  border-border
+  text-text-primary
+  placeholder:text-text-secondary
+  shadow-sm
+  focus:outline-none
+  focus:ring-4
+  focus:ring-blue-300
+  focus:border-blue-500
+  transition-all
+  duration-300
+"
           
         />
 <div className="relative mb-6">
@@ -141,24 +151,30 @@ onChange={(e) => setEmail(e.target.value)}
     placeholder="Password"
     value={password}
 onChange={(e) => setPassword(e.target.value)}
-    className="
-      w-full
-      p-4
-      rounded-xl
-      bg-white/20
-      border
-      border-white/30
-      placeholder:text-white/70
-      text-white
-      outline-none
-    "
+   className="
+  w-full
+  p-4
+  rounded-xl
+  bg-input
+  border
+  border-border
+  text-text-primary
+  placeholder:text-text-secondary
+  shadow-sm
+  focus:outline-none
+  focus:ring-4
+  focus:ring-blue-300
+  focus:border-blue-500
+  transition-all
+  duration-300
+"
     
   />
 
   <button
     type="button"
     onClick={() => setShowPassword(!showPassword)}
-    className="absolute right-4 top-1/2 -translate-y-1/2 text-white"
+    className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
   >
     {showPassword ? "🙈" : "👁"}
   </button>
@@ -173,17 +189,21 @@ onChange={(e) => setPassword(e.target.value)}
   }}
   onClick={login}
           className="
-            w-full
-            py-4
-            rounded-xl
-            bg-white
-            text-blue-600
-            font-bold
-            hover:scale-105
-            transition
-            duration-300
-            shadow-xl
-          "
+  w-full
+  py-4
+  rounded-xl
+  bg-gradient-to-r
+  from-blue-600
+  to-emerald-500
+  text-white
+  font-bold
+  hover:from-blue-700
+  hover:to-emerald-600
+  hover:scale-105
+  transition-all
+  duration-300
+  shadow-xl
+"
         >
           Login
         </motion.button>
@@ -195,7 +215,7 @@ onChange={(e) => setPassword(e.target.value)}
 <motion.button
   whileHover={{ scale: 1.05 }}
   onClick={() => router.push("/signup")}
-  className="text-white font-bold w-full mt-2"
+  className="text-text-primary font-bold w-full mt-2 hover:text-brand-emerald transition-colors duration-300"
 >
   Create Account
 </motion.button>

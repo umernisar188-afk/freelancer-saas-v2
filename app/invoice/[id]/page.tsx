@@ -80,13 +80,13 @@ doc.setFont("helvetica","bold");
 doc.text("Project",20,105);
 
 doc.setFont("helvetica","normal");
-doc.text(invoice.project,20,113);
+doc.text(invoice.project ?? "", 20, 113);
 
 doc.setFont("helvetica","bold");
 doc.text("Status",20,128);
 
 doc.setFont("helvetica","normal");
-doc.text(invoice.status,20,136);
+doc.text(invoice.status ?? "", 20, 1);
 
 // Total Box
 doc.setFillColor(37,99,235);
@@ -150,14 +150,14 @@ return <h1>Loading...</h1>
 }
 
 return (
-<main className="min-h-screen bg-green-100 p-10">
+<main className="min-h-screen bg-gradient-to-br from-blue-100 via-blue-50 to-emerald-100 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950 p-6 md:p-10 transition-colors duration-300">
 
-<div className="max-w-3xl mx-auto bg-white rounded-3xl p-10 shadow-xl text-gray-900">
+<div className="max-w-3xl mx-auto bg-white/80 dark:bg-slate-800/70 backdrop-blur-2xl rounded-3xl p-8 md:p-10 shadow-2xl border border-white/60 dark:border-white/10 text-slate-900 dark:text-slate-100 transition-colors duration-300">
 {company && company.logo && (
 <img
 src={company.logo}
 alt="Company Logo"
-className="w-32 h-32 object-contain mb-5 border-4 border-black rounded-xl bg-white"
+className="w-32 h-32 object-contain mb-5 border-2 border-border rounded-xl bg-white dark:bg-slate-900 shadow-md"
 />
 )}
 
@@ -208,7 +208,7 @@ PROJECT
 </p>
 
 
-<div className="mt-8 bg-green-700 text-black  rounded-2xl p-6">
+<div className="mt-8 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 dark:from-blue-500 dark:via-indigo-500 dark:to-blue-600 text-white rounded-2xl p-6 shadow-xl">
 
 
 <p className="text-lg">
@@ -231,17 +231,22 @@ Status:
 </p>
 
 
-<p className="text-green-700 font-bold">
-{invoice.status}
+<p
+  className={
+    invoice.status === "Paid"
+      ? "text-emerald-600 dark:text-emerald-400 font-bold"
+      : "text-amber-600 dark:text-amber-400 font-bold"
+  }
+>
+  {invoice.status}
 </p>
-
 
 </div>
 
 
 </div>
 <button
-className="mt-6 bg-black text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-800 transition"
+className="mt-6 bg-gradient-to-r from-blue-600 to-emerald-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:from-blue-700 hover:to-emerald-600 hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
 onClick={downloadPDF}
 >
 Download PDF
@@ -256,11 +261,11 @@ Download PDF
     headers: {
       "Content-Type": "application/json",
     },
-
-    body: JSON.stringify({
-      to: invoice.email,
-      subject: `Invoice ${invoice.id}`,
-      html: `
+body: JSON.stringify({
+  invoice_id: invoice.id,
+  to: invoice.email,
+  subject: `Invoice ${invoice.id}`,
+  html: `
         <h2>Hello ${invoice.client_name},</h2>
 
         <p>Please find your invoice.</p>
@@ -282,7 +287,7 @@ Download PDF
   }
 
 }}
-  className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
+  className="mt-4 w-full bg-gradient-to-r from-blue-600 to-emerald-500 text-white py-3 rounded-xl font-semibold shadow-lg hover:from-blue-700 hover:to-emerald-600 hover:shadow-xl hover:scale-[1.01] transition-all duration-300"
 >
   📧 Email Invoice
 </button>
